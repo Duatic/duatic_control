@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://ros.org/wiki/xacro">
+
+<xacro:macro name="control" params="namespace controllers_file *remapping:=^">
+    <gazebo>
+        <plugin filename="libgz_ros2_control-system.so" name="gz_ros2_control::GazeboSimROS2ControlPlugin">
+            <parameters>${controllers_file}</parameters>
+            <ros>
+                <namespace>${namespace}</namespace>
+                <remapping>/robot_description:=robot_description</remapping>
+                <remapping>/tf:=tf</remapping>
+                <remapping>/tf_static:=tf_static</remapping>
+                <remapping>/diagnostics:=diagnostics</remapping>
+                <xacro:insert_block name="remapping" />
+            </ros>
+        </plugin>
+    </gazebo>
+</xacro:macro>
+
+</robot>
