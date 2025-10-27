@@ -31,28 +31,36 @@ def launch_setup(context, *args, **kwargs):
         print("Could not find '/**/controller_manager/ros__parameters' in the YAML file.")
         return []
 
-    # Identify controller names from that section
-    controller_names = [
-        key for key, value in cm_params.items() if isinstance(value, dict) and "type" in value
-    ]
-    print(f"Controllers found in YAML: {controller_names}")
+    # Identify controllers and their states
+    controllers = []
+    for controller_name, controller_params in cm_params.items():
+        if isinstance(controller_params, dict) and "type" in controller_params:
+            ctrl_state = controller_params.get("state", "active").lower()
+            controllers.append((controller_name, ctrl_state))
+
+    print(f"Controllers and states found in YAML: {controllers}")
 
     # Spawn controllers
     nodes = []
-    for name in controller_names:
+    for controller_name, state in controllers:
+        args = [
+            controller_name,
+            "-c",
+            "controller_manager",
+            "--switch-timeout",
+            "30.0",
+            "--param-file",
+            config_path,
+        ]
+        # Add --inactive if controller should start inactive
+        if state == "inactive":
+            args.append("--inactive")
+
         node = Node(
             package="controller_manager",
             executable="spawner",
             namespace=namespace,
-            arguments=[
-                name,
-                "-c",
-                "controller_manager",
-                "--switch-timeout",
-                "30.0",
-                "--param-file",
-                config_path,
-            ],
+            arguments=args,
             output="screen",
         )
         nodes.append(node)

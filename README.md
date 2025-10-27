@@ -21,6 +21,7 @@ ros2 launch duatic_control control.launch.py \
 ## Config file format
 - File must be valid YAML.
 - Top-level must use `/**:` to scope parameters for controller_manager and named controllers.
+- define activation on startup status through a state key.
 
 Example:
 ```yaml
@@ -30,8 +31,13 @@ Example:
       update_rate: 100
       joint_state_broadcaster:
         type: joint_state_broadcaster/JointStateBroadcaster
+        state: active
       mecanum_drive_controller:
         type: mecanum_drive_controller/MecanumDriveController
+        state: active
+      gravity_compensation_controller_arm_right:
+        type: dynaarm_controllers/GravityCompensationController
+        state: inactive
 
   mecanum_drive_controller:
     ros__parameters:
