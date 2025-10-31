@@ -1,10 +1,10 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://ros.org/wiki/xacro">
 
-<xacro:macro name="control" params="namespace controllers_file *remapping:=^">
+<xacro:macro name="control" params="namespace *remapping:=^">
     <gazebo>
         <plugin filename="libgz_ros2_control-system.so" name="gz_ros2_control::GazeboSimROS2ControlPlugin">
-            <parameters>${controllers_file}</parameters>
+            <parameters>$(find duatic_control)/config/controller_manager.yaml</parameters>
             <ros>
                 <namespace>${namespace}</namespace>
                 <remapping>/robot_description:=robot_description</remapping>
