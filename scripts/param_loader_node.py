@@ -1,0 +1,114 @@
+#!/usr/bin/env python3
+import rclpy
+from rclpy.node import Node
+from rclpy.parameter import Parameter
+from rcl_interfaces.srv import SetParameters
+import yaml
+
+
+class ParamLoaderNode(Node):
+    """A ROS 2 node that loads nested parameters into another running node."""
+
+    def __init__(self):
+        super().__init__("param_loader")
+
+        self.get_logger().info("🚀ParamLoaderNode started")
+        # Declare parameters
+        self.declare_parameter("target_node", "")
+        self.declare_parameter("param_file", "")
+        self.declare_parameter("parameters", "")  # ✅ declare as string, not dict!
+
+        self.target_node = self.get_parameter("target_node").get_parameter_value().string_value
+        param_file = self.get_parameter("param_file").get_parameter_value().string_value
+        parameters_str = self.get_parameter("parameters").get_parameter_value().string_value
+
+        # Load parameters from file or YAML string
+        self.params = {}
+        if param_file:
+            try:
+                with open(param_file) as f:
+                    self.params = yaml.safe_load(f)
+            except Exception as e:
+                self.get_logger().error(f"Failed to load YAML file '{param_file}': {e}")
+                rclpy.shutdown()
+                return
+        elif parameters_str:
+            try:
+                self.params = yaml.safe_load(parameters_str)
+            except Exception as e:
+                self.get_logger().error(f"Failed to parse 'parameters': {e}")
+                rclpy.shutdown()
+                return
+        else:
+            self.get_logger().error(
+                "❌ No parameters provided (need 'param_file' or 'parameters')."
+            )
+            rclpy.shutdown()
+            return
+
+        if not self.target_node:
+            self.get_logger().error("❌ Missing required parameter: 'target_node'")
+            rclpy.shutdown()
+            return
+
+        self.get_logger().info(f"🚀 Loading parameters into {self.target_node}")
+
+        self.client = self.create_client(SetParameters, f"{self.target_node}/set_parameters")
+        self.timer = self.create_timer(0.5, self.try_set_parameters)
+        self.attempts = 0
+
+    def flatten_params(self, prefix, data):
+        """Flatten nested parameter dictionaries into ROS-style names."""
+        flat = []
+        for key, value in data.items():
+            full_name = f"{prefix}.{key}" if prefix else key
+            if isinstance(value, dict):
+                flat.extend(self.flatten_params(full_name, value))
+            else:
+                flat.append(Parameter(name=full_name, value=value).to_parameter_msg())
+        return flat
+
+    def try_set_parameters(self):
+        if not self.client.wait_for_service(timeout_sec=1.0):
+            self.attempts += 1
+            if self.attempts > 20:
+                self.get_logger().error(
+                    f"❌ Timeout waiting for {self.target_node}/set_parameters service."
+                )
+                rclpy.shutdown()
+            else:
+                self.get_logger().warn(
+                    f"Waiting for {self.target_node}/set_parameters... (attempt {self.attempts})"
+                )
+            return
+
+        param_list = self.flatten_params("", self.params)
+        self.get_logger().info(f"Setting {len(param_list)} parameters on {self.target_node}...")
+
+        req = SetParameters.Request(parameters=param_list)
+        future = self.client.call_async(req)
+        future.add_done_callback(self.on_done)
+        self.timer.cancel()
+
+    def on_done(self, future):
+        try:
+            result = future.result()
+            if result:
+                self.get_logger().info(f"✅ Parameters successfully set on {self.target_node}")
+            else:
+                self.get_logger().error(f"❌ Failed to set parameters on {self.target_node}")
+        except Exception as e:
+            self.get_logger().error(f"Exception while setting parameters: {e}")
+        finally:
+            rclpy.shutdown()
+
+
+def main(args=None):
+    rclpy.init(args=args)
+    node = ParamLoaderNode()
+    rclpy.spin(node)
+    node.destroy_node()
+
+
+if __name__ == "__main__":
+    main()

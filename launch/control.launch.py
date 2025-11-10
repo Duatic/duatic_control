@@ -1,9 +1,9 @@
 import yaml
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, OpaqueFunction
+from launch.actions import DeclareLaunchArgument, OpaqueFunction, RegisterEventHandler
+from launch.event_handlers import OnProcessExit
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
-
 
 ARGUMENTS = [
     DeclareLaunchArgument(
@@ -16,37 +16,77 @@ ARGUMENTS = [
 
 
 def launch_setup(context, *args, **kwargs):
-    # Extract controller names from YAML (namespaced format with /**/)
-    with open(LaunchConfiguration("config_path").perform(context)) as f:
+    namespace = LaunchConfiguration("namespace").perform(context)
+    config_path = LaunchConfiguration("config_path").perform(context)
+
+    # Load YAML
+    with open(config_path) as f:
         data = yaml.safe_load(f)
 
-    # Navigate to the nested parameter section
-    # Structure: { "/**": { "ros__parameters": { <controllers>: { ... } } } }
+    # Get controller manager section
     try:
-        params = data["/**"]["controller_manager"]["ros__parameters"]
+        cm_params = data["/**"]["controller_manager"]["ros__parameters"]
+        print(f"Controller Manager parameters:\n{yaml.dump(cm_params, sort_keys=False)}")
     except KeyError:
-        print("Could not find '/**/ros__parameters' in the YAML file.")
+        print("Could not find '/**/controller_manager/ros__parameters' in the YAML file.")
         return []
 
-    # Extract controller names (top-level keys under ros__parameters)
-    controller_names = [
-        key for key, value in params.items() if isinstance(value, dict) and "type" in value
-    ]
+    # Identify controllers and their states
+    controllers = []
+    for controller_name, controller_params in cm_params.items():
+        if isinstance(controller_params, dict) and "type" in controller_params:
+            ctrl_state = controller_params.get("state", "active").lower()
+            controllers.append((controller_name, ctrl_state))
 
-    print(f"Controllers found in YAML: {controller_names}")
+    print(f"Controllers and states found in YAML: {controllers}")
 
-    # Generate controller spawner nodes
+    # Spawn controllers
     nodes = []
-    for name in controller_names:
+    for controller_name, state in controllers:
+        args = [
+            controller_name,
+            "-c",
+            "controller_manager",
+            "--switch-timeout",
+            "30.0",
+            "--param-file",
+            config_path,
+        ]
+        # Add --inactive if controller should start inactive
+        if state == "inactive":
+            args.append("--inactive")
+
         node = Node(
             package="controller_manager",
             executable="spawner",
-            namespace=LaunchConfiguration("namespace"),
-            arguments=[name, "-c", "controller_manager", "--switch-timeout", "30.0"],
+            namespace=namespace,
+            arguments=args,
             output="screen",
         )
         nodes.append(node)
-    return nodes
+
+    # Parameter loader node (runs once and exits)
+    load_params = Node(
+        package="duatic_control",
+        executable="param_loader_node.py",
+        name="param_loader",
+        output="screen",
+        namespace=namespace,
+        parameters=[
+            {
+                "target_node": f"/{namespace}/controller_manager",
+                "parameters": yaml.dump(cm_params),  # ✅ send as YAML string
+            }
+        ],
+    )
+
+    spawn_controller_after_loading_params = RegisterEventHandler(
+        OnProcessExit(
+            target_action=load_params, on_exit=nodes  # Spawn controllers after params loaded
+        )
+    )
+
+    return [load_params, spawn_controller_after_loading_params]
 
 
 def generate_launch_description():

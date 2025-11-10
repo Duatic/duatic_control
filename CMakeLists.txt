@@ -12,8 +12,14 @@ find_package(ament_cmake REQUIRED)
 # find_package(<dependency> REQUIRED)
 
 install(DIRECTORY
-  launch urdf
+  config launch urdf
   DESTINATION share/${PROJECT_NAME}/
+)
+
+install(
+  PROGRAMS
+    scripts/param_loader_node.py
+  DESTINATION lib/${PROJECT_NAME}
 )
 
 if(BUILD_TESTING)
