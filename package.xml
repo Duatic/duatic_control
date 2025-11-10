@@ -4,7 +4,7 @@
   <name>duatic_control</name>
   <version>0.0.0</version>
   <description>ros2control Wrapper for Duatic Robots</description>
-  <maintainer email="mbloechli@student.ethz.ch">root</maintainer>
+  <maintainer email="mbloechlinger@duatic.com">Marc Blöchlinger</maintainer>
   <license>Duatic</license>
 
   <exec_depend>rclpy</exec_depend>
