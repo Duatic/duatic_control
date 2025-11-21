@@ -9,14 +9,11 @@ ARGUMENTS = [
     DeclareLaunchArgument(
         "config_path", default_value="", description="Path to the controller config YAML file."
     ),
-    DeclareLaunchArgument(
-        "namespace", default_value="empty_namespace", description="Robot namespace"
-    ),
+    DeclareLaunchArgument("namespace", default_value=""),
 ]
 
 
 def launch_setup(context, *args, **kwargs):
-    namespace = LaunchConfiguration("namespace").perform(context)
     config_path = LaunchConfiguration("config_path").perform(context)
 
     # Load YAML
@@ -59,22 +56,26 @@ def launch_setup(context, *args, **kwargs):
         node = Node(
             package="controller_manager",
             executable="spawner",
-            namespace=namespace,
+            namespace=LaunchConfiguration("namespace").perform(context),
             arguments=args,
             output="screen",
         )
         nodes.append(node)
 
-    # Parameter loader node (runs once and exits)
+    # Parameter loader node
+    target_node = "/controller_manager"
+    if LaunchConfiguration("namespace").perform(context) != "":
+        target_node = (
+            "/" + LaunchConfiguration("namespace").perform(context) + "/controller_manager"
+        )
     load_params = Node(
         package="duatic_control",
         executable="param_loader_node.py",
         name="param_loader",
         output="screen",
-        namespace=namespace,
         parameters=[
             {
-                "target_node": f"/{namespace}/controller_manager",
+                "target_node": target_node,
                 "parameters": yaml.dump(cm_params),  # ✅ send as YAML string
             }
         ],
