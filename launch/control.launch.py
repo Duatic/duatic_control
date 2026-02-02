@@ -28,18 +28,24 @@ def launch_setup(context, *args, **kwargs):
         print("Could not find '/**/controller_manager/ros__parameters' in the YAML file.")
         return []
 
-    # Identify controllers and their states
+    # Identify controllers, states, and remappings
     controllers = []
-    for controller_name, controller_params in cm_params.items():
-        if isinstance(controller_params, dict) and "type" in controller_params:
-            ctrl_state = controller_params.get("state", "active").lower()
-            controllers.append((controller_name, ctrl_state))
 
-    print(f"Controllers and states found in YAML: {controllers}")
+    for controller_name in list(cm_params.keys()):
+        controller_params = cm_params[controller_name]
+
+        # Check validation (type is mandatory for the controller manager)
+        if isinstance(controller_params, dict) and "type" in controller_params:
+
+            # We use .pop() so these don't get uploaded to the ROS parameter server
+            ctrl_state = controller_params.pop("state", "active").lower()
+            ctrl_remappings = controller_params.pop("remappings", {})
+
+            controllers.append((controller_name, ctrl_state, ctrl_remappings))
 
     # Spawn controllers
     nodes = []
-    for controller_name, state in controllers:
+    for controller_name, state, remappings in controllers:
         args = [
             controller_name,
             "-c",
@@ -52,6 +58,12 @@ def launch_setup(context, *args, **kwargs):
         # Add --inactive if controller should start inactive
         if state == "inactive":
             args.append("--inactive")
+
+        # Handle Remappings
+        if remappings:
+            for from_topic, to_topic in remappings.items():
+                args.append("--controller-ros-args")
+                args.append(f"--remap {from_topic}:={to_topic}")
 
         node = Node(
             package="controller_manager",
@@ -76,7 +88,7 @@ def launch_setup(context, *args, **kwargs):
         parameters=[
             {
                 "target_node": target_node,
-                "parameters": yaml.dump(cm_params),  # ✅ send as YAML string
+                "parameters": yaml.dump(cm_params),
             }
         ],
     )

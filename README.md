@@ -21,7 +21,10 @@ ros2 launch duatic_control control.launch.py \
 ## Config file format
 - File must be valid YAML.
 - Top-level must use `/**:` to scope parameters for controller_manager and named controllers.
-- define activation on startup status through a state key.
+- Each controller definition can include:
+  - `type`: (required) The controller plugin type (e.g., `joint_state_broadcaster/JointStateBroadcaster`).
+  - `state`: (optional) Activation status on startup. Use `active` (default) or `inactive`.
+  - `remappings`: (optional) A dictionary of topic remappings in the format `topic_name: remapped_topic_name`.
 
 Example:
 ```yaml
@@ -35,6 +38,8 @@ Example:
       mecanum_drive_controller:
         type: mecanum_drive_controller/MecanumDriveController
         state: active
+        remappings:
+          mecanum_drive_controller/reference: cmd_vel
       gravity_compensation_controller_arm_right:
         type: dynaarm_controllers/GravityCompensationController
         state: inactive
@@ -42,10 +47,10 @@ Example:
   mecanum_drive_controller:
     ros__parameters:
       reference_timeout: 0.7
-      front_left_wheel_command_joint_name: "platform_wheel1"
-      front_right_wheel_command_joint_name: "platform_wheel2"
-      rear_right_wheel_command_joint_name: "platform_wheel3"
-      rear_left_wheel_command_joint_name: "platform_wheel4"
+      front_left_wheel_command_joint_name: "joint_wheel1"
+      front_right_wheel_command_joint_name: "joint_wheel2"
+      rear_right_wheel_command_joint_name: "joint_wheel3"
+      rear_left_wheel_command_joint_name: "joint_wheel4"
       kinematics:
         wheels_radius: 0.1015
         sum_of_robot_center_projection_on_X_Y_axis: 0.595
@@ -54,15 +59,13 @@ Example:
 ```
 
 ## URDF plugin (for usage with Gazebo Sim)
-- Macro parameters: `namespace`, `controllers_file` (absolute path required), optional remapping block.
+- Macro parameters: `namespace`, `controllers_file` (absolute path required).
 - The plugin reads the config file and injects it into the ros2_control controller_manager on spawn, the config file must be the same that's passed to the control.launch.py file.
 
 Example:
 ```xml
 <xacro:include filename="$(find duatic_control)/urdf/plugins.urdf.xacro" />
-<xacro:control namespace="$(arg namespace)" controllers_file="$(find platform_bringup)/config/controllers.yaml">
-    <remapping>mecanum_drive_controller/reference:=cmd_vel</remapping>
-</xacro:control>
+<xacro:control namespace="$(arg namespace)" controllers_file="$(find platform_bringup)/config/controllers.yaml"/>
 ```
 
 ## Troubleshooting
