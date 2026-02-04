@@ -35,10 +35,7 @@ on:
 
 jobs:
   reusable_ici:
-    if: always()
     name: ${{ inputs.ros_distro }} ${{ inputs.ros_repo }}
-
-    # Logic: If check_runner succeeded, use self-hosted. Otherwise, use ubuntu-latest.
     runs-on: 'ubuntu-latest'
 
     env:
