@@ -9,9 +9,7 @@ on:
 
 jobs:
   pre_commit:
-    if: always() # Run even if check_runner timed out
     name: Format
-    # Logic: Use self-hosted if probe succeeded, otherwise fallback to ubuntu-latest
     runs-on: 'ubuntu-latest'
 
     steps:
