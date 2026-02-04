@@ -71,4 +71,3 @@ jobs:
           ROS_DISTRO: ${{ inputs.ros_distro }}
           ROS_REPO: ${{ inputs.ros_repo }}
           BEFORE_INSTALL_UPSTREAM_DEPENDENCIES: ${{ inputs.before_install_upstream_dependencies }}
-          BEFORE_INIT: 'apt-get update -qq && apt-get install -y -qq git && git config --global url."https://${{ secrets.token }}@github.com/".insteadOf "https://github.com/"'
