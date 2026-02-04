@@ -5,13 +5,6 @@ from launch.event_handlers import OnProcessExit
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
-ARGUMENTS = [
-    DeclareLaunchArgument(
-        "config_path", default_value="", description="Path to the controller config YAML file."
-    ),
-    DeclareLaunchArgument("namespace", default_value=""),
-]
-
 
 def launch_setup(context, *args, **kwargs):
     config_path = LaunchConfiguration("config_path").perform(context)
@@ -103,9 +96,12 @@ def launch_setup(context, *args, **kwargs):
 
 
 def generate_launch_description():
-    # Define LaunchDescription variable
-    ld = LaunchDescription(ARGUMENTS)
+    declared_arguments = [
+        DeclareLaunchArgument(
+            "config_path", default_value="", description="Path to the controller config YAML file."
+        ),
+        DeclareLaunchArgument("namespace", default_value=""),
+    ]
 
     # Add nodes to LaunchDescription
-    ld.add_action(OpaqueFunction(function=launch_setup))
-    return ld
+    return LaunchDescription(declared_arguments + [OpaqueFunction(function=launch_setup)])

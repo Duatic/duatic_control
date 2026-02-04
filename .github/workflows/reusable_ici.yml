@@ -32,9 +32,6 @@ on:
         default: '.ccache'
         required: false
         type: string
-    secrets:
-      token:
-        required: true
 
 jobs:
   reusable_ici:
