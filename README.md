@@ -1,6 +1,8 @@
 # Duatic Control
-[![ROS2](https://img.shields.io/badge/ROS2-Jazzy-blue.svg)](https://docs.ros.org/en/jazzy/)
-[![License](https://img.shields.io/badge/License-Duatic-blue.svg)](LICENSE)
+[![Humble Build Main](https://github.com/Duatic/duatic_control/actions/workflows/build-humble.yml/badge.svg?branch=main)](https://github.com/Duatic/duatic_control/actions/workflows/build-humble.yml)
+[![Jazzy Build Main](https://github.com/Duatic/duatic_control/actions/workflows/build-jazzy.yml/badge.svg?branch=main)](https://github.com/Duatic/duatic_control/actions/workflows/build-jazzy.yml)
+[![Kilted Build Main](https://github.com/Duatic/duatic_control/actions/workflows/build-kilted.yml/badge.svg?branch=main)](https://github.com/Duatic/duatic_control/actions/workflows/build-kilted.yml)
+[![Rolling Build Main](https://github.com/Duatic/duatic_control/actions/workflows/build-rolling.yml/badge.svg?branch=main)](https://github.com/Duatic/duatic_control/actions/workflows/build-rolling.yml)
 
 Compact ros2_control integration for Duatic robots.
 
