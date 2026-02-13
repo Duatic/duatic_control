@@ -40,7 +40,7 @@ class ParamLoaderNode(Node):
         # Declare parameters
         self.declare_parameter("target_node", "")
         self.declare_parameter("param_file", "")
-        self.declare_parameter("parameters", "")  # ✅ declare as string, not dict!
+        self.declare_parameter("parameters", "")
 
         self.target_node = self.get_parameter("target_node").get_parameter_value().string_value
         param_file = self.get_parameter("param_file").get_parameter_value().string_value
@@ -64,18 +64,16 @@ class ParamLoaderNode(Node):
                 rclpy.shutdown()
                 return
         else:
-            self.get_logger().error(
-                "❌ No parameters provided (need 'param_file' or 'parameters')."
-            )
+            self.get_logger().error("No parameters provided (need 'param_file' or 'parameters').")
             rclpy.shutdown()
             return
 
         if not self.target_node:
-            self.get_logger().error("❌ Missing required parameter: 'target_node'")
+            self.get_logger().error("Missing required parameter: 'target_node'")
             rclpy.shutdown()
             return
 
-        self.get_logger().info(f"🚀 Loading parameters into {self.target_node}")
+        self.get_logger().info(f"Loading parameters into {self.target_node}")
 
         self.client = self.create_client(SetParameters, f"{self.target_node}/set_parameters")
         self.timer = self.create_timer(0.5, self.try_set_parameters)
@@ -97,7 +95,7 @@ class ParamLoaderNode(Node):
             self.attempts += 1
             if self.attempts > 20:
                 self.get_logger().error(
-                    f"❌ Timeout waiting for {self.target_node}/set_parameters service."
+                    f"Timeout waiting for {self.target_node}/set_parameters service."
                 )
                 rclpy.shutdown()
             else:
@@ -118,9 +116,9 @@ class ParamLoaderNode(Node):
         try:
             result = future.result()
             if result:
-                self.get_logger().info(f"✅ Parameters successfully set on {self.target_node}")
+                self.get_logger().info(f"Parameters successfully set on {self.target_node}")
             else:
-                self.get_logger().error(f"❌ Failed to set parameters on {self.target_node}")
+                self.get_logger().error(f"Failed to set parameters on {self.target_node}")
         except Exception as e:
             self.get_logger().error(f"Exception while setting parameters: {e}")
         finally:
