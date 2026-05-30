@@ -19,6 +19,8 @@ install(DIRECTORY
 install(
   PROGRAMS
     scripts/param_loader_node.py
+    scripts/hardware_activator_node.py
+    scripts/controller_activator_node.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

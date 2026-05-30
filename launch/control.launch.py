@@ -24,6 +24,7 @@
 import yaml
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, OpaqueFunction, RegisterEventHandler
+from launch.conditions import UnlessCondition
 from launch.event_handlers import OnProcessExit
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
@@ -44,6 +45,26 @@ def launch_setup(context, *args, **kwargs):
         print("Could not find '/**/controller_manager/ros__parameters' in the YAML file.")
         return []
 
+    # Extract controller manager parameters (update_rate, hardware_components_initial_state)
+    cm_parameters = []
+    update_rate = cm_params.pop("update_rate", 1000)
+    if update_rate is not None:
+        cm_parameters.append({"update_rate": update_rate})
+    hardware_components_initial_state = cm_params.pop("hardware_components_initial_state", {})
+    if hardware_components_initial_state:
+        cm_parameters.append(
+            {"hardware_components_initial_state": hardware_components_initial_state}
+        )
+
+    # Controller Manager Node
+    controller_manager = Node(
+        package="controller_manager",
+        executable="ros2_control_node",
+        parameters=cm_parameters,
+        output={"stdout": "screen", "stderr": "screen"},
+        condition=UnlessCondition(LaunchConfiguration("use_sim_time")),
+    )
+
     # Identify controllers, states, and remappings
     controllers = []
 
@@ -59,8 +80,8 @@ def launch_setup(context, *args, **kwargs):
 
             controllers.append((controller_name, ctrl_state, ctrl_remappings))
 
-    # Spawn controllers
-    nodes = []
+    # Configure controllers
+    spawner_nodes = []
     for controller_name, state, remappings in controllers:
         args = [
             controller_name,
@@ -70,10 +91,8 @@ def launch_setup(context, *args, **kwargs):
             "30.0",
             "--param-file",
             config_path,
+            "--inactive",
         ]
-        # Add --inactive if controller should start inactive
-        if state == "inactive":
-            args.append("--inactive")
 
         # Handle Remappings
         if remappings:
@@ -88,7 +107,7 @@ def launch_setup(context, *args, **kwargs):
             arguments=args,
             output="screen",
         )
-        nodes.append(node)
+        spawner_nodes.append(node)
 
     # Parameter loader node
     target_node = "/controller_manager"
@@ -109,13 +128,55 @@ def launch_setup(context, *args, **kwargs):
         ],
     )
 
-    spawn_controller_after_loading_params = RegisterEventHandler(
-        OnProcessExit(
-            target_action=load_params, on_exit=nodes  # Spawn controllers after params loaded
+    # Chain: param_loader -> spawner[0] -> spawner[1] -> … -> hardware activator -> controller activator
+    prev = load_params
+    event_handlers = []
+    for spawner_node in spawner_nodes:
+        event_handlers.append(
+            RegisterEventHandler(OnProcessExit(target_action=prev, on_exit=[spawner_node]))
         )
-    )
+        prev = spawner_node
 
-    return [load_params, spawn_controller_after_loading_params]
+    active_names = [name for name, state, _ in controllers if state == "active"]
+    inactive_components = hardware_components_initial_state.get("inactive", [])
+
+    # Hardware must be active before its command interfaces can be claimed.
+    if inactive_components:
+        hardware_activator = Node(
+            package="duatic_control",
+            executable="hardware_activator_node.py",
+            name="hardware_activator",
+            output="screen",
+            parameters=[
+                {
+                    "controller_manager": target_node,
+                    "hardware_components": inactive_components,
+                }
+            ],
+        )
+        event_handlers.append(
+            RegisterEventHandler(OnProcessExit(target_action=prev, on_exit=[hardware_activator]))
+        )
+        prev = hardware_activator
+
+    if active_names:
+        controller_activator = Node(
+            package="duatic_control",
+            executable="controller_activator_node.py",
+            name="controller_activator",
+            output="screen",
+            parameters=[
+                {
+                    "controllers": active_names,
+                    "controller_manager": target_node,
+                }
+            ],
+        )
+        event_handlers.append(
+            RegisterEventHandler(OnProcessExit(target_action=prev, on_exit=[controller_activator]))
+        )
+
+    return [controller_manager, load_params] + event_handlers
 
 
 def generate_launch_description():
@@ -124,6 +185,7 @@ def generate_launch_description():
             "config_path", default_value="", description="Path to the controller config YAML file."
         ),
         DeclareLaunchArgument("namespace", default_value=""),
+        DeclareLaunchArgument("use_sim_time", default_value="false"),
     ]
 
     # Add nodes to LaunchDescription

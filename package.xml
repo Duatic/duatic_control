@@ -8,6 +8,7 @@
   <license>Duatic</license>
 
   <exec_depend>rclpy</exec_depend>
+  <exec_depend>controller_manager_msgs</exec_depend>
   <exec_depend>gz_ros2_control</exec_depend>
   <exec_depend>xacro</exec_depend>
 
