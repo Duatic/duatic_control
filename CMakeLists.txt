@@ -21,6 +21,7 @@ install(
     scripts/param_loader_node.py
     scripts/hardware_activator_node.py
     scripts/controller_activator_node.py
+    scripts/joint_state_merger_node.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
