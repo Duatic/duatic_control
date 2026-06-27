@@ -17,6 +17,6 @@ jobs:
     uses: ./.github/workflows/reusable_ici.yml
     with:
       ros_distro: rolling
-      ros_repo: main
+      ros_repo: testing
       upstream_workspace: ''
       ref_for_scheduled_build: main
