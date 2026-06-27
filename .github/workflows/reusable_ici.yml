@@ -4,6 +4,11 @@ name: Reusable industrial_ci workflow
 on:
   workflow_call:
     inputs:
+      timeout_minutes:
+        description: 'Maximum time the job is allowed to run.'
+        default: 30
+        required: false
+        type: number
       ref_for_scheduled_build:
         description: 'Reference on which the repo should be checkout for scheduled build. Usually is this name of a branch or a tag.'
         default: ''
@@ -36,6 +41,7 @@ on:
 jobs:
   reusable_ici:
     name: ${{ inputs.ros_distro }} ${{ inputs.ros_repo }}
+    timeout-minutes: ${{ inputs.timeout_minutes }}
     runs-on: 'ubuntu-latest'
 
     env:
@@ -68,3 +74,4 @@ jobs:
           ROS_DISTRO: ${{ inputs.ros_distro }}
           ROS_REPO: ${{ inputs.ros_repo }}
           BEFORE_INSTALL_UPSTREAM_DEPENDENCIES: ${{ inputs.before_install_upstream_dependencies }}
+          BEFORE_INIT: 'apt-get update -qq && apt-get install -y -qq git && git config --global url."https://${{ secrets.token }}@github.com/".insteadOf "https://github.com/"'
