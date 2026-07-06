@@ -23,6 +23,8 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
+"""Load ROS 2 parameters from YAML and set them on a target node."""
+
 import rclpy
 from rclpy.node import Node
 from rclpy.parameter import Parameter
@@ -31,9 +33,23 @@ import yaml
 
 
 class ParamLoaderNode(Node):
-    """A ROS 2 node that loads nested parameters into another running node."""
+    """Load nested parameters into another running ROS 2 node.
+
+    The node accepts either a YAML file path through ``param_file`` or a YAML
+    string through ``parameters``. Nested YAML dictionaries are flattened into
+    dotted ROS parameter names before being sent to the target node's
+    ``set_parameters`` service.
+
+    Attributes:
+        target_node: Fully qualified name of the node receiving parameters.
+        params: Parsed YAML parameters to send to the target node.
+        client: Client for the target node's ``set_parameters`` service.
+        timer: Timer that retries the service lookup until it is available.
+        attempts: Number of service lookup attempts already made.
+    """
 
     def __init__(self):
+        """Initialize the loader node and parse the configured parameter source."""
         super().__init__("param_loader")
 
         self.get_logger().info("🚀ParamLoaderNode started")
@@ -80,7 +96,15 @@ class ParamLoaderNode(Node):
         self.attempts = 0
 
     def flatten_params(self, prefix, data):
-        """Flatten nested parameter dictionaries into ROS-style names."""
+        """Flatten nested parameter dictionaries into ROS-style names.
+
+        Args:
+            prefix: Dotted prefix to prepend to every parameter name.
+            data: Nested dictionary of parameter names and values.
+
+        Returns:
+            A list of ROS parameter messages ready for ``SetParameters``.
+        """
         flat = []
         for key, value in data.items():
             full_name = f"{prefix}.{key}" if prefix else key
@@ -91,6 +115,7 @@ class ParamLoaderNode(Node):
         return flat
 
     def try_set_parameters(self):
+        """Wait for the target service, then send all loaded parameters."""
         if not self.client.wait_for_service(timeout_sec=1.0):
             self.attempts += 1
             if self.attempts > 20:
@@ -113,12 +138,19 @@ class ParamLoaderNode(Node):
         self.timer.cancel()
 
     def on_done(self, future):
+        """Handle completion of the asynchronous ``SetParameters`` request.
+
+        Args:
+            future: Future returned by the asynchronous service call.
+        """
         try:
             result = future.result()
-            if result:
+            if result and all(r.successful for r in result.results):
                 self.get_logger().info(f"Parameters successfully set on {self.target_node}")
             else:
-                self.get_logger().error(f"Failed to set parameters on {self.target_node}")
+                for i, r in enumerate(result.results):
+                    if not r.successful:
+                        self.get_logger().error(f"Parameter {i} failed: {r.reason}")
         except Exception as e:
             self.get_logger().error(f"Exception while setting parameters: {e}")
         finally:
@@ -126,6 +158,11 @@ class ParamLoaderNode(Node):
 
 
 def main(args=None):
+    """Run the parameter loader node.
+
+    Args:
+        args: Optional ROS command-line arguments.
+    """
     rclpy.init(args=args)
     node = ParamLoaderNode()
     rclpy.spin(node)

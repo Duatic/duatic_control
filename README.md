@@ -5,71 +5,145 @@
 [![Lyrical](https://github.com/Duatic/duatic_control/actions/workflows/build-lyrical.yml/badge.svg?branch=main)](https://github.com/Duatic/duatic_control/actions/workflows/build-lyrical.yml)
 [![Rolling](https://github.com/Duatic/duatic_control/actions/workflows/build-rolling.yml/badge.svg?branch=main)](https://github.com/Duatic/duatic_control/actions/workflows/build-rolling.yml)
 
-Compact ros2_control integration for Duatic robots.
+Compact `ros2_control` integration for Duatic robots.
 
 ## Overview
-- The URDF plugin (urdf/plugins.urdf.xacro) expects a full path to a controllers YAML file.
-- That YAML must contain the controller_manager and controller node parameter mappings using the top-level wildcard `/**:` so the ros2_control plugin can load controllers on startup.
 
-## Quick usage
-- Ensure a config file exists and pass its absolute path to the launch/spawn process that loads the URDF plugin.
+This package provides:
 
-Example:
+- `launch/control.launch.py`, a common launch sequence for controller manager setup and controller activation.
+- `scripts/param_loader_node.py`, which loads nested controller parameters into a running controller manager.
+- `scripts/hardware_activator_node.py`, which activates hardware components listed as initially inactive.
+- `scripts/controller_activator_node.py`, which activates all requested controllers in one strict `switch_controller` call.
+- `urdf/plugins.urdf.xacro`, a Gazebo Sim `gz_ros2_control` plugin macro.
+
+The launch sequence is intentionally staged:
+
+1. Start `ros2_control_node` unless `use_sim_time:=true`.
+2. Load controller manager and controller parameters from the YAML file.
+3. Spawn every configured controller inactive.
+4. Activate hardware components listed under `hardware_components_initial_state.inactive`.
+5. Activate controllers whose config metadata has `state: active`.
+
+This keeps hardware writes disabled until controllers have been loaded and configured, while still activating command-claiming controllers only after their hardware interfaces are available.
+
+## Quick Usage
+
+Pass the controller config with the `config_path` launch argument:
+
 ```bash
 ros2 launch duatic_control control.launch.py \
-  namespace:="robot1" \
-  controllers_file:="/full/path/to/controllers.yaml"
+  namespace:=robot1 \
+  config_path:=/full/path/to/controllers.yaml
 ```
 
-## Config file format
-- File must be valid YAML.
-- Top-level must use `/**:` to scope parameters for controller_manager and named controllers.
-- Each controller definition can include:
-  - `type`: (required) The controller plugin type (e.g., `joint_state_broadcaster/JointStateBroadcaster`).
-  - `state`: (optional) Activation status on startup. Use `active` (default) or `inactive`.
-  - `remappings`: (optional) A dictionary of topic remappings in the format `topic_name: remapped_topic_name`.
+For Gazebo Sim, run the same launch file with `use_sim_time:=true`. In that mode `control.launch.py` does not start `ros2_control_node`; the Gazebo plugin owns the controller manager.
 
-Example:
+```bash
+ros2 launch duatic_control control.launch.py \
+  namespace:=robot1 \
+  config_path:=/full/path/to/controllers_sim.yaml \
+  use_sim_time:=true
+```
+
+## Launch Arguments
+
+- `config_path`: Path to the controller config YAML file.
+- `namespace`: Optional namespace for controller manager, spawners, and activation nodes.
+- `use_sim_time`: When `false`, launch `controller_manager/ros2_control_node`. When `true`, skip it for Gazebo Sim.
+
+## Config File Format
+
+The config file must be valid YAML and must use `/**:` as the top-level scope:
+
 ```yaml
 /**:
   controller_manager:
     ros__parameters:
-      update_rate: 100
+      update_rate: 1000
+
+      hardware_components_initial_state:
+        inactive:
+          - DuaTorsoSystem
+
       joint_state_broadcaster:
         type: joint_state_broadcaster/JointStateBroadcaster
         state: active
+
+      gravity_compensation_controller:
+        type: duatic_controllers/GravityCompensationController
+        state: active
+
+      joint_trajectory_controller_arm_left:
+        type: joint_trajectory_controller/JointTrajectoryController
+        state: inactive
+
+  joint_state_broadcaster:
+    ros__parameters:
+      use_urdf_to_filter: false
+      joints:
+        - arm_left/shoulder_rotation
+        - arm_left/shoulder_flexion
+
+  gravity_compensation_controller:
+    ros__parameters:
+      joints:
+        - arm_left/shoulder_rotation
+        - arm_left/shoulder_flexion
+```
+
+Controller entries under `controller_manager.ros__parameters` support:
+
+- `type`: Required controller plugin type.
+- `state`: Optional startup state metadata. Use `active` or `inactive`; default is `active`.
+- `remappings`: Optional dictionary of controller topic remappings.
+
+Example remapping:
+
+```yaml
+/**:
+  controller_manager:
+    ros__parameters:
       mecanum_drive_controller:
         type: mecanum_drive_controller/MecanumDriveController
         state: active
         remappings:
           mecanum_drive_controller/reference: cmd_vel
-      gravity_compensation_controller_arm_right:
-        type: dynaarm_controllers/GravityCompensationController
-        state: inactive
-
-  mecanum_drive_controller:
-    ros__parameters:
-      reference_timeout: 0.7
-      front_left_wheel_command_joint_name: "joint_wheel1"
-      front_right_wheel_command_joint_name: "joint_wheel2"
-      rear_right_wheel_command_joint_name: "joint_wheel3"
-      rear_left_wheel_command_joint_name: "joint_wheel4"
-      kinematics:
-        wheels_radius: 0.1015
-        sum_of_robot_center_projection_on_X_Y_axis: 0.595
-      enable_odom_tf: false
-      base_frame_id: "base_link"
 ```
 
-## URDF plugin (for usage with Gazebo Sim)
-- Macro parameters: `namespace`, `controllers_file` (absolute path required).
-- The plugin reads the config file and injects it into the ros2_control controller_manager on spawn, the config file must be the same that's passed to the control.launch.py file.
+`state` and `remappings` are consumed by `control.launch.py` and are not uploaded as ROS parameters. All controllers are spawned with `--inactive`; controllers marked `active` are activated later by `controller_activator_node.py`.
 
-Example:
+## Hardware Activation
+
+Hardware components can be listed as initially inactive:
+
+```yaml
+/**:
+  controller_manager:
+    ros__parameters:
+      hardware_components_initial_state:
+        inactive:
+          - DuaTorsoSystem
+```
+
+When this list is present, `hardware_activator_node.py` runs after all controller spawners finish and before controller activation. It calls the controller manager services to transition each listed component to `active`, configuring an `unconfigured` component first if needed.
+
+If no inactive hardware components are configured, hardware activation is skipped.
+
+## Gazebo Sim URDF Plugin
+
+Include the xacro macro in the robot description:
+
 ```xml
 <xacro:include filename="$(find duatic_control)/urdf/plugins.urdf.xacro" />
-<xacro:control namespace="$(arg namespace)" controllers_file="$(find platform_bringup)/config/controllers.yaml"/>
+<xacro:control namespace="$(arg namespace)" />
 ```
 
+The macro adds the `gz_ros2_control::GazeboSimROS2ControlPlugin`, sets the namespace, and remaps common global topics into the namespace. The plugin loads the packaged `config/controller_manager.yaml`; controller-specific configuration is still provided through `control.launch.py config_path:=...`.
+
 ## Troubleshooting
-- If controllers don't load: validate YAML syntax, ensure `/**:` is present, and confirm the launch passes an absolute path to the controllers file.
+
+- If no controllers load, validate the YAML syntax and confirm `/**/controller_manager/ros__parameters` exists.
+- If the launch fails immediately, check that `config_path` points to an existing YAML file.
+- If a controller fails to activate, confirm its required hardware component was listed under `hardware_components_initial_state.inactive` when it should start inactive.
+- If Gazebo Sim already provides the controller manager, launch with `use_sim_time:=true` so `ros2_control_node` is not started twice.
