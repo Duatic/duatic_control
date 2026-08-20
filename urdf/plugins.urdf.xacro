@@ -14,10 +14,10 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS “AS IS” 
 -->
 <robot xmlns:xacro="http://ros.org/wiki/xacro">
 
-<xacro:macro name="control" params="namespace:=''">
+<xacro:macro name="control" params="namespace:='' controller_manager_yaml:='$(find duatic_control)/config/controller_manager.yaml'">
     <gazebo>
         <plugin filename="libgz_ros2_control-system.so" name="gz_ros2_control::GazeboSimROS2ControlPlugin">
-            <parameters>$(find duatic_control)/config/controller_manager.yaml</parameters>
+            <parameters>${controller_manager_yaml}</parameters>
             <ros>
                 <namespace>${namespace}</namespace>
                 <remapping>/robot_description:=robot_description</remapping>
