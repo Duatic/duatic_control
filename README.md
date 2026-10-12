@@ -1,8 +1,8 @@
 # Duatic Control
-[![Jazzy](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/mbloechli/a055d8ea7458cf656b2d3e4adc18ab8c/raw/duatic_control-jazzy.json)](https://github.com/Duatic/duatic_control/actions/workflows/ci.yml)
-[![Kilted](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/mbloechli/a055d8ea7458cf656b2d3e4adc18ab8c/raw/duatic_control-kilted.json)](https://github.com/Duatic/duatic_control/actions/workflows/ci.yml)
-[![Lyrical](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/mbloechli/a055d8ea7458cf656b2d3e4adc18ab8c/raw/duatic_control-lyrical.json)](https://github.com/Duatic/duatic_control/actions/workflows/ci.yml)
-[![Rolling](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/mbloechli/a055d8ea7458cf656b2d3e4adc18ab8c/raw/duatic_control-rolling.json)](https://github.com/Duatic/duatic_control/actions/workflows/ci.yml)
+[![Jazzy](https://github.com/Duatic/duatic_control/raw/badges/jazzy.svg)](https://github.com/Duatic/duatic_control/actions/workflows/ci.yml)
+[![Kilted](https://github.com/Duatic/duatic_control/raw/badges/kilted.svg)](https://github.com/Duatic/duatic_control/actions/workflows/ci.yml)
+[![Lyrical](https://github.com/Duatic/duatic_control/raw/badges/lyrical.svg)](https://github.com/Duatic/duatic_control/actions/workflows/ci.yml)
+[![Rolling](https://github.com/Duatic/duatic_control/raw/badges/rolling.svg)](https://github.com/Duatic/duatic_control/actions/workflows/ci.yml)
 
 Compact ros2_control integration for Duatic robots.
 
