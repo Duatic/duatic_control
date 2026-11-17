@@ -32,6 +32,7 @@ import rclpy
 import yaml
 from controller_manager_msgs.srv import ListControllers, ListHardwareComponents
 from lifecycle_msgs.srv import GetState
+from rclpy.clock import Clock, ClockType
 from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data
@@ -193,7 +194,9 @@ class StageGate(Node):
         self.exit_code = None
         # Wall time, a paused simulation must not stop the timeout
         self.started_at = time.monotonic()
-        self.timer = self.create_timer(POLL_PERIOD, self.poll)
+        self.timer = self.create_timer(
+            POLL_PERIOD, self.poll, clock=Clock(clock_type=ClockType.STEADY_TIME)
+        )
 
     def poll(self):
         for check in self.checks:

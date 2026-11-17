@@ -261,6 +261,12 @@ def test_duplicate_stage_names_are_rejected():
         staged(stages)
 
 
+@pytest.mark.parametrize("name", ["state-estimation", "1st", "", "a b"])
+def test_invalid_stage_names_are_rejected(name):
+    with pytest.raises(ValueError, match="letters, digits and underscores"):
+        staged([Stage(name=name, actions=[], gate=stub_gate(0))])
+
+
 def test_stage_arguments_default_to_required():
     require, timeout_scale = stage_arguments(["imu"])
 

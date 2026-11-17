@@ -24,6 +24,7 @@
 """Start launch actions in stages, each one confirmed by a gate process before its dependents start."""
 
 import os
+import re
 from dataclasses import dataclass, field
 from typing import Iterable, List, Sequence
 
@@ -131,6 +132,10 @@ def staged(stages: Sequence[Stage]) -> OpaqueFunction:
 
 def _validate(stages: Sequence[Stage]) -> None:
     names = [stage.name for stage in stages]
+    # The name is used in the gate node name and the require_<name> argument
+    invalid = [name for name in names if not re.fullmatch(r"[A-Za-z][A-Za-z0-9_]*", name)]
+    if invalid:
+        raise ValueError(f"Stage names must be letters, digits and underscores, got: {invalid}")
     duplicates = {name for name in names if names.count(name) > 1}
     if duplicates:
         raise ValueError(f"Stage names must be unique, duplicated: {sorted(duplicates)}")

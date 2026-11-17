@@ -24,7 +24,6 @@
 """Stage gates against a controller manager with mock hardware, a lifecycle node and published drive states."""
 
 import sys
-import textwrap
 import time
 
 from launch import LaunchDescription, LaunchService
@@ -39,7 +38,7 @@ from launch.actions import (
 from launch.event_handlers import OnProcessExit
 from launch.events import Shutdown
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch_ros.actions import Node
+from launch_ros.actions import Node, SetParameter
 from ament_index_python.packages import get_package_share_directory
 
 from duatic_control.stages import gate
@@ -128,6 +127,8 @@ def test_gates_pass_and_fail_on_the_right_checks(tmp_path):
     }
     scaled_gate = gate("scaled_timeout", 2, topics=["/never_published"])
     gates["scaled_timeout"] = scaled_gate
+    sim_time_gate = gate("sim_time_without_clock", 2, topics=["/never_published"])
+    gates["sim_time_without_clock"] = sim_time_gate
     exit_codes = {}
     exit_times = {}
     started = time.monotonic()
@@ -167,13 +168,21 @@ def test_gates_pass_and_fail_on_the_right_checks(tmp_path):
                 executable="ros2_control_node",
                 namespace="inactive_hardware",
                 parameters=[
-                    {"update_rate": 50, "hardware_components_initial_state.inactive": ["MockSystem"]}
+                    {
+                        "update_rate": 50,
+                        "hardware_components_initial_state.inactive": ["MockSystem"],
+                    }
                 ],
                 remappings=[("robot_description", "/robot_description")],
             ),
             *[record(name) for name in gates],
-            *[gate_action for name, gate_action in gates.items() if name != "scaled_timeout"],
+            *[
+                gate_action
+                for name, gate_action in gates.items()
+                if name not in ("scaled_timeout", "sim_time_without_clock")
+            ],
             GroupAction([SetLaunchConfiguration("stage_timeout_scale", "4"), scaled_gate]),
+            GroupAction([SetParameter(name="use_sim_time", value=True), sim_time_gate]),
         ]
     )
     service = LaunchService()
@@ -190,6 +199,7 @@ def test_gates_pass_and_fail_on_the_right_checks(tmp_path):
         "lifecycle_missing": 1,
         "hardware_inactive": 1,
         "scaled_timeout": 1,
+        "sim_time_without_clock": 1,
     }
     # 2 s scaled by 4
     assert exit_times["scaled_timeout"] > 7.5

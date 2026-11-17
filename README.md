@@ -86,11 +86,13 @@ return [*stage_arguments(["imu", "state_estimation"]), staged(stages)]
 ```
 
 - `core_stage` starts the robot state publisher, the controller manager, the controllers through `control.launch.py`, brake release and the e-stop node. It is ready once every controller in the config is in its configured state and every hardware component is active. If the controller manager exits, the launch shuts down.
-- `gate` checks any combination of: a first message on `topics`, the controllers in `controllers_config`, active hardware components, and active `lifecycle_nodes`. After `timeout` seconds it logs every check that has not passed and exits 1. The `stage_timeout_scale` argument multiplies every gate timeout, for example `stage_timeout_scale:=5` for a slow simulator start.
+- `gate` checks any combination of: a first message on `topics`, the controllers in `controllers_config`, active hardware components, and active `lifecycle_nodes`. After `timeout` seconds it logs every check that has not passed and exits 1. Timeouts run on wall time, also under `use_sim_time`. The `stage_timeout_scale` argument multiplies every gate timeout, for example `stage_timeout_scale:=5` for a slow simulator start.
 - A gate only checks the start of its stage. Nothing watches a stage once it is ready, except that the launch shuts down if the controller manager exits. Switching controllers before the core stage is ready, for example with the e-stop, fails the core stage.
 - Every configurable stage has a `require_<stage>` argument, `true` by default. If a required stage fails, the launch shuts down with the reason. If it is set to `false`, the launch continues without the stage and skips the stages that come after it. A skipped stage that is itself required still shuts the launch down. The core stage is always required.
 - Declare the `require_<stage>` and `stage_timeout_scale` arguments with `stage_arguments` in `generate_launch_description`, so that `ros2 launch <package> <file> --show-args` lists them.
 - Place `staged(...)` where the stages should take their namespace, launch arguments and environment from, for example after `PushRosNamespace` in a `GroupAction`. Each stage runs in its own scope, so launch configurations set by one stage are not seen by the others.
+- A launch file started by a stage can run its own `staged(...)`. Those stages are not part of the outer graph: stages that come after the outer stage do not wait for them. Stage names must be unique across all graphs in one namespace, because each gate node is named `<stage>_gate`.
+- Stage names may contain letters, digits and underscores, and start with a letter.
 
 ## Troubleshooting
 - If controllers don't load: validate YAML syntax, ensure `/**:` is present, and confirm the launch passes an absolute path to the controllers file.
