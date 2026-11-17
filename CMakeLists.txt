@@ -32,6 +32,7 @@ if(BUILD_TESTING)
   ament_add_pytest_test(test_stages test/test_stages.py TIMEOUT 120)
   # Runs a controller manager, isolated so that it cannot reach other ROS nodes
   ament_add_ros_isolated_pytest_test(test_stage_gate test/test_stage_gate.py TIMEOUT 120)
+  ament_add_ros_isolated_pytest_test(test_param_loader test/test_param_loader.py TIMEOUT 180)
 endif()
 
 ament_package()
