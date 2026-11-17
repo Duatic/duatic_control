@@ -23,6 +23,8 @@ install(
 )
 
 if(BUILD_TESTING)
+  find_package(ament_cmake_ros REQUIRED)
+  ament_add_ros_isolated_pytest_test(test_param_loader test/test_param_loader.py TIMEOUT 180)
 endif()
 
 ament_package()
