@@ -74,18 +74,23 @@ Example:
 A bringup launch file can start its parts in stages. A stage is a group of launch actions plus a gate, a process that exits 0 once the stage is up. A stage starts when every stage it comes `after` is ready.
 
 ```python
+from launch.actions import GroupAction
+from launch_ros.actions import PushRosNamespace
 from duatic_control.core import core_stage
 from duatic_control.stages import Stage, gate, stage_arguments, staged
 
 stages = [
-    core_stage(robot_description, controllers_config),
+    core_stage(robot_description, controllers_config, namespace="robot1"),
     Stage("imu", [imu_driver], gate("imu", 30, topics=["sensor/imu/data"])),
     Stage("state_estimation", [ekf], gate("state_estimation", 30, topics=["odometry/filtered"]), after=["core", "imu"]),
 ]
-return [*stage_arguments(["imu", "state_estimation"]), staged(stages)]
+return [
+    *stage_arguments(["imu", "state_estimation"]),
+    GroupAction([PushRosNamespace("robot1"), staged(stages)]),
+]
 ```
 
-- `core_stage` starts the robot state publisher, the controller manager, the controllers through `control.launch.py`, brake release and the e-stop node. It is ready once every controller in the config is in its configured state and every hardware component is active. If the controller manager exits, the launch shuts down.
+- `core_stage` starts the robot state publisher, the controller manager, the controllers through `control.launch.py`, brake release and the e-stop node. Pass the same `namespace` as the surrounding `PushRosNamespace`, because the controllers are spawned outside its scope. It is ready once every controller in the config is in its configured state and every hardware component is active. If the controller manager exits, the launch shuts down.
 - `gate` checks any combination of: a first message on `topics`, the controllers in `controllers_config`, active hardware components, and active `lifecycle_nodes`. After `timeout` seconds it logs every check that has not passed and exits 1. Timeouts run on wall time, also under `use_sim_time`. The `stage_timeout_scale` argument multiplies every gate timeout, for example `stage_timeout_scale:=5` for a slow simulator start.
 - A gate only checks the start of its stage. Nothing watches a stage once it is ready, except that the launch shuts down if the controller manager exits. Switching controllers before the core stage is ready, for example with the e-stop, fails the core stage.
 - Every configurable stage has a `require_<stage>` argument, `true` by default. If a required stage fails, the launch shuts down with the reason. If it is set to `false`, the launch continues without the stage and skips the stages that come after it. A skipped stage that is itself required still shuts the launch down. The core stage is always required.

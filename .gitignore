@@ -1,1 +1,5 @@
 .ccache
+
+# Python
+__pycache__/
+*.pyc

@@ -48,7 +48,7 @@ def expected_controller_states(controllers_config):
         data = yaml.safe_load(f)
     cm_params = data["/**"]["controller_manager"]["ros__parameters"]
     return {
-        name: params.get("state", "active").lower()
+        name: "inactive" if params.get("state", "active").lower() == "inactive" else "active"
         for name, params in cm_params.items()
         if isinstance(params, dict) and "type" in params
     }
