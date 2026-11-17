@@ -104,7 +104,7 @@ class ParamLoaderNode(Node):
                 )
                 rclpy.shutdown()
             else:
-                self.get_logger().warn(
+                self.get_logger().warning(
                     f"Waiting for {self.target_node}/set_parameters... (attempt {self.attempts})"
                 )
             return
