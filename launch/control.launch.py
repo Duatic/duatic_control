@@ -116,7 +116,9 @@ def launch_setup(context, *args, **kwargs):
         ],
     )
 
-    def spawn_if_params_loaded(event, _context):
+    def spawn_if_params_loaded(event, exit_context):
+        if exit_context.is_shutdown:
+            return None
         if event.returncode == 0:
             return nodes
         reason = f"Loading controller parameters into {target_node} failed, see param_loader above"
