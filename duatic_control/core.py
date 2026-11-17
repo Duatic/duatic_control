@@ -29,7 +29,7 @@ from launch.substitutions import PathJoinSubstitution
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 
-from duatic_control.stages import Stage, gate
+from duatic_bringup_stages.stages import Stage, gate
 
 
 def core_stage(
