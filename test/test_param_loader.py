@@ -92,3 +92,30 @@ def test_missing_target_fails(tmp_path):
     result = run_loader("/no_such_node", params)
     assert result.returncode == 1
     assert "Timeout waiting for /no_such_node/set_parameters" in result.stdout + result.stderr
+
+
+def test_control_launch_exits_with_an_error_when_loading_fails(tmp_path):
+    controllers = tmp_path / "controllers.yaml"
+    controllers.write_text(
+        "/**:\n"
+        "  controller_manager:\n"
+        "    ros__parameters:\n"
+        "      update_rate: 50\n"
+        "      joint_state_broadcaster:\n"
+        "        type: joint_state_broadcaster/JointStateBroadcaster\n"
+    )
+    result = subprocess.run(
+        [
+            "ros2",
+            "launch",
+            "duatic_control",
+            "control.launch.py",
+            f"config_path:={controllers}",
+            "namespace:=no_such_robot",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=90,
+    )
+    assert result.returncode == 1
+    assert "Loading controller parameters into" in result.stdout + result.stderr

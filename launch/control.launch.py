@@ -25,15 +25,19 @@ import yaml
 from launch import LaunchDescription
 from launch.actions import (
     DeclareLaunchArgument,
-    EmitEvent,
-    LogInfo,
     OpaqueFunction,
     RegisterEventHandler,
 )
 from launch.event_handlers import OnProcessExit
-from launch.events import Shutdown
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
+
+
+def abort(context, reason):
+    # An exception makes ros2 launch exit with code 1, a Shutdown event exits with 0
+    if context.is_shutdown:
+        return None
+    raise RuntimeError(reason)
 
 
 def launch_setup(context, *args, **kwargs):
@@ -122,7 +126,7 @@ def launch_setup(context, *args, **kwargs):
         if event.returncode == 0:
             return nodes
         reason = f"Loading controller parameters into {target_node} failed, see param_loader above"
-        return [LogInfo(msg=reason), EmitEvent(event=Shutdown(reason=reason))]
+        return [OpaqueFunction(function=abort, args=[reason])]
 
     spawn_controller_after_loading_params = RegisterEventHandler(
         OnProcessExit(target_action=load_params, on_exit=spawn_if_params_loaded)
