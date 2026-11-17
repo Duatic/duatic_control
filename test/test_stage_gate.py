@@ -23,8 +23,10 @@
 
 """Stage gates against a controller manager with mock hardware, a lifecycle node and published drive states."""
 
+import importlib.util
 import sys
 import time
+from pathlib import Path
 
 from launch import LaunchDescription, LaunchService
 from launch.actions import (
@@ -203,3 +205,22 @@ def test_gates_pass_and_fail_on_the_right_checks(tmp_path):
     }
     # 2 s scaled by 4
     assert exit_times["scaled_timeout"] > 7.5
+
+
+def test_states_other_than_inactive_are_expected_active(tmp_path):
+    spec = importlib.util.spec_from_file_location(
+        "stage_gate_script", Path(__file__).resolve().parent.parent / "scripts" / "stage_gate.py"
+    )
+    script = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(script)
+    config = tmp_path / "controllers.yaml"
+    config.write_text(
+        CONTROLLERS + "        state: unconfigured\n"
+        "      second_broadcaster:\n"
+        "        type: joint_state_broadcaster/JointStateBroadcaster\n"
+        "        state: INACTIVE\n"
+    )
+    assert script.expected_controller_states(str(config)) == {
+        "joint_state_broadcaster": "active",
+        "second_broadcaster": "inactive",
+    }
