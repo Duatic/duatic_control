@@ -23,13 +23,13 @@
 
 """The core stage every robot starts first: robot description, controller manager, controllers and e-stop."""
 
-from launch.actions import IncludeLaunchDescription, Shutdown
+from launch.actions import IncludeLaunchDescription
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import PathJoinSubstitution
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 
-from duatic_bringup_stages.stages import Stage, gate
+from duatic_bringup_stages.stages import Stage, abort, gate
 
 
 def core_stage(
@@ -59,7 +59,7 @@ def core_stage(
             executable="ros2_control_node",
             parameters=[controllers_config],
             output={"stdout": "screen", "stderr": "screen"},
-            on_exit=Shutdown(reason="The controller manager exited"),
+            on_exit=[abort("The controller manager exited")],
         ),
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(

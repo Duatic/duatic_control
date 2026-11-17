@@ -91,7 +91,7 @@ return [
 
 - Pass the same `namespace` as the surrounding `PushRosNamespace`, because the controllers are spawned outside its scope.
 - The stage is ready once every controller in the config is in its configured state and every hardware component is active. It is always required.
-- If the controller manager exits, the launch shuts down. Switching controllers before the core stage is ready, for example with the e-stop, fails the core stage.
+- If the controller manager exits, the launch shuts down and `ros2 launch` exits with code 1. Switching controllers before the core stage is ready, for example with the e-stop, fails the core stage.
 
 ## Troubleshooting
 - If controllers don't load: validate YAML syntax, ensure `/**:` is present, and confirm the launch passes an absolute path to the controllers file.
