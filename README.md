@@ -70,7 +70,7 @@ from duatic_control import extend_controller_config
 
 controllers_config = extend_controller_config(
     LaunchConfiguration("controllers_config").perform(context),
-    LaunchConfiguration("custom_controllers_config").perform(context),
+    LaunchConfiguration("extend_controllers_config").perform(context),
 )
 ```
 
