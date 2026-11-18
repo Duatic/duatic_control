@@ -60,6 +60,26 @@ Example:
       base_frame_id: "base_link"
 ```
 
+## Adding controllers to a base config
+A bringup package can ship a base config file and let a project add controllers on top of it
+without changing the base. `extend_controller_config(base_file, extra_file)` returns the path of
+a file holding both, to pass on wherever the config file is expected:
+
+```python
+from duatic_control import extend_controller_config
+
+controllers_config = extend_controller_config(
+    LaunchConfiguration("controllers_config").perform(context),
+    LaunchConfiguration("custom_controllers_config").perform(context),
+)
+```
+
+- With an empty `extra_file`, it returns `base_file` unchanged.
+- The extra file uses the format above, but may only declare new controllers (each with a `type`)
+  and the parameters of those controllers.
+- Changing anything the base file sets (e.g. `update_rate`, or the state or parameters of a base
+  controller) raises a `ValueError` naming both files, so the launch fails.
+
 ## URDF plugin (for usage with Gazebo Sim)
 - Macro parameters: `namespace`, `controllers_file` (absolute path required).
 - The plugin reads the config file and injects it into the ros2_control controller_manager on spawn, the config file must be the same that's passed to the control.launch.py file.
