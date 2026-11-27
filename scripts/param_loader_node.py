@@ -23,7 +23,10 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
+import sys
+
 import rclpy
+from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
 from rclpy.parameter import Parameter
 from rcl_interfaces.srv import SetParameters
@@ -37,6 +40,8 @@ class ParamLoaderNode(Node):
         super().__init__("param_loader")
 
         self.get_logger().info("🚀ParamLoaderNode started")
+        # Decides the exit code, launch only spawns controllers after a successful load
+        self.succeeded = False
         # Declare parameters
         self.declare_parameter("target_node", "")
         self.declare_parameter("param_file", "")
@@ -99,7 +104,7 @@ class ParamLoaderNode(Node):
                 )
                 rclpy.shutdown()
             else:
-                self.get_logger().warn(
+                self.get_logger().warning(
                     f"Waiting for {self.target_node}/set_parameters... (attempt {self.attempts})"
                 )
             return
@@ -107,18 +112,34 @@ class ParamLoaderNode(Node):
         param_list = self.flatten_params("", self.params)
         self.get_logger().info(f"Setting {len(param_list)} parameters on {self.target_node}...")
 
+        self.sent_params = param_list
         req = SetParameters.Request(parameters=param_list)
         future = self.client.call_async(req)
         future.add_done_callback(self.on_done)
         self.timer.cancel()
+        # The target can die while handling the request, e.g. on a wrongly typed parameter
+        self.response_timer = self.create_timer(10.0, self.on_response_timeout)
+
+    def on_response_timeout(self):
+        self.get_logger().error(f"No answer from {self.target_node}/set_parameters within 10 s")
+        rclpy.shutdown()
 
     def on_done(self, future):
+        self.response_timer.cancel()
         try:
             result = future.result()
-            if result:
-                self.get_logger().info(f"Parameters successfully set on {self.target_node}")
-            else:
+            rejected = [
+                (param.name, outcome.reason)
+                for param, outcome in zip(self.sent_params, result.results)
+                if not outcome.successful
+            ]
+            for name, reason in rejected:
+                self.get_logger().error(f"{self.target_node} rejected parameter '{name}': {reason}")
+            if rejected:
                 self.get_logger().error(f"Failed to set parameters on {self.target_node}")
+            else:
+                self.get_logger().info(f"Parameters successfully set on {self.target_node}")
+                self.succeeded = True
         except Exception as e:
             self.get_logger().error(f"Exception while setting parameters: {e}")
         finally:
@@ -128,8 +149,12 @@ class ParamLoaderNode(Node):
 def main(args=None):
     rclpy.init(args=args)
     node = ParamLoaderNode()
-    rclpy.spin(node)
+    try:
+        rclpy.spin(node)
+    except ExternalShutdownException:
+        pass
     node.destroy_node()
+    sys.exit(0 if node.succeeded else 1)
 
 
 if __name__ == "__main__":
